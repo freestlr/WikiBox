@@ -21,7 +21,6 @@ var WikiBox = (function(){
             //end classes
     
     
-    $q = document.querySelector,
     tables = [],
     form = {},
     _data = {}
@@ -78,14 +77,29 @@ var WikiBox = (function(){
         req.send(text)
     }
     _render = function(){}
+    _generateIds = function(aTables) {
+        aTables.each(function() {
+            var id;
+            do {id = Math.random().toString().substr(2,10)}
+            while(!tables.ids[id])
+            this.id = id;
+        })
+    }
     
     return {
         init: function(){
             _getContent();
-            var exist, saved, i, id;
-            exist = View.getContainers(Model.getName('cl_cont'));
-            exist.raw && View.setNewId(Model.getNewId(exist.raw));
-			
+            tables = document.getElementsByClassName('wikibox');
+            if(tables[0])return;    //nothing to do
+            tables.raw = [];
+            tables.each(function() {
+                this.id ? (tables.ids[this.id] = this) : tables.raw.push(this)
+            });
+            tables.raw.length || _generateIds(tables.raw);
+            delete tables.raw;
+            tables.saved = [];
+            
+            
             saved = Model.getSaved();
             for (i=exist.list.length;i--;) {
                 id = exist.list[i];
