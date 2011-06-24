@@ -20,10 +20,40 @@ var WikiBox = (function(){
     
             //end classes
     
-    
+    tooltip = (function(){
+        var 
+        node = document.createElement('div');   //TODO: need to describe css
+        node.id = 'tooltip';
+        node.style.display = 'none';
+        document.body.appendChild(node);
+        
+        
+        _render = function(conf) {
+            var
+            date = conf.date || '',
+            status = conf.date || '',
+            links = conf.date || '',
+            text = conf.date || '';
+            
+            
+        }
+        _moveTo = function(elem) {}
+        
+        return {
+            show: function(id, o){
+                _render({
+                    date:data[id].date,
+                    status:data[id].status,
+                    links:data[id].links,
+                    text:data[id].text
+                })
+                _moveTo(o);
+            }
+        }
+    })();
     tables = [],
     form = {},
-    _data = {}
+    data = {}
     
     _getContent = function(){
         var url = location.href.replace('view','edit')
@@ -85,6 +115,12 @@ var WikiBox = (function(){
             this.id = id;
         })
     }
+    _addEvents = function(arr) {
+        arr.each(function(){this.addEventListener('click', function(event){
+            /wb-cell-status/.test(event.target.className)&&tooltip.show(this.id, event.target);
+            /wb-button-save/.test(event.target.className)&&_save();
+        }, false)})
+    }
     
     return {
         init: function(){
@@ -95,23 +131,14 @@ var WikiBox = (function(){
             tables.each(function() {
                 this.id ? (tables.ids[this.id] = this) : tables.raw.push(this)
             });
-            tables.raw.length || _generateIds(tables.raw);
+            tables.raw.length && _generateIds(tables.raw);
             delete tables.raw;
-            tables.saved = [];
+            data.each(function() {
+                tables.ids[this] ? tables.ids[this].fill(data[this])
+                    : data[this].raw()
+            });
             
-            
-            saved = Model.getSaved();
-            for (i=exist.list.length;i--;) {
-                id = exist.list[i];
-                if(!saved.ids[id]) {
-                    saved.raw.push(id);
-                    continue
-               }
-            exist.ids[id] = Model.getCellData(id);
-            }
-            saved.raw && Model.setNewId(saved.raw);
-            View.render(exist.ids);
-            addEvents(window);
+            _addEvents(tables);
         },
         save: function(){
             var content = '';
