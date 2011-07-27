@@ -3,26 +3,26 @@ var WikiBox = (function(){
     tables = [],
     form = {},
     data = {},
+    selector = {
+        table_header_class: '',
+        table_date_class: '',
+        table_result_class: '',
+        
+        tooltip_id: '',
+        tooltip_header_id: '',
+        tooltip_status_id: '',
+        tooltip_details_id: '',
+        tooltip_bugzilla_id: ''
+    };
     
+    var
     Tooltip = (function(){
-        var node = $('<div>')       //TODO: need to describe css
-        .attr('id','wb-tooltip')
-        .css('display','none')
-        .appendTo(document.body)
-        .bind('click', handle)[0];
-
-        node.header = $('<div>')
-        .attr('id','wb-tt-header')
-        .appendTo(node)[0];
-        node.status = $('<div>')
-        .attr('id','wb-tt-status')
-        .appendTo(node)[0];
-        node.details = $('<div>')
-        .attr('id','wb-tt-details')
-        .appendTo(node)[0];
-        node.bzlist = $('<div>')
-        .attr('id','wb-tt-bzlist')
-        .appendTo(node)[0];
+        var
+        node = $('<div>').attr('id','wb-tooltip').hide().appendTo(document.body).bind('click', handle)[0];
+        node.header = $('<div>').attr('id','wb-tt-header').appendTo(node)[0];
+        node.status = $('<div>').attr('id','wb-tt-status').appendTo(node)[0];
+        node.details = $('<div>').attr('id','wb-tt-details').appendTo(node)[0];
+        node.bzlist = $('<div>').attr('id','wb-tt-bzlist').appendTo(node)[0];
         
         content = [],
         
@@ -55,6 +55,10 @@ var WikiBox = (function(){
             }
         }
     })(),
+    
+    _fill = function(table, data) {
+        table.querySelectorAll()
+    }
     
     _prepare = function(text){
         text = text
@@ -122,7 +126,7 @@ var WikiBox = (function(){
             $(tables).each(function() {     //store existing ids and generate new
                 if(!this.id) {
                     var id;                 //each id is ten-digit number
-                    do { id = Math.random().toString().substr(2,10) }
+                    do {id = Math.random().toString().substr(2,10)}
                     while(tables.ids[id])
                     this.id = id;
                 }
@@ -131,14 +135,14 @@ var WikiBox = (function(){
             });
             $(data).each(function() {       //fill tables with stored data
                 tables.ids[this]
-                    ? tables.ids[this].fill(data[this])
+                    ? fill(tables.ids[this], data[this])
                     : data[this].raw()
             });
         },
         
         set: function(o){           //make some verifications here if needed
             $(o).each(function(){
-                data[this] = o[this]
+                if (o.hasOwnProperty(this)) data[this] = o[this]
             })
         }
     }
