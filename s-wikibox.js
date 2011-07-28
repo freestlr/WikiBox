@@ -8,23 +8,25 @@ var WikiBox = (function(){
         table_date_class: '',
         table_result_class: '',
         
-        tooltip_id: '',
-        tooltip_header_id: '',
-        tooltip_status_id: '',
-        tooltip_details_id: '',
-        tooltip_bugzilla_id: ''
+        iframe_container_id: 'wb-edit-content',
+        
+        tooltip_id: 'wb-tooltip',
+        tooltip_header_id: 'wb-tt-header',
+        tooltip_status_id: 'wb-tt-status',
+        tooltip_details_id: 'wb-tt-details',
+        tooltip_bugzilla_id: 'wb-tt-bzlist'
     };
     
     var
     Tooltip = (function(){
         var
-        node = $('<div>').attr('id','wb-tooltip').hide().appendTo(document.body).bind('click', handle)[0];
-        node.header = $('<div>').attr('id','wb-tt-header').appendTo(node)[0];
-        node.status = $('<div>').attr('id','wb-tt-status').appendTo(node)[0];
-        node.details = $('<div>').attr('id','wb-tt-details').appendTo(node)[0];
-        node.bzlist = $('<div>').attr('id','wb-tt-bzlist').appendTo(node)[0];
+        node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body).bind('click', handle)[0];
+        node.header = $('<div>').attr('id',selector.tooltip_header_id).appendTo(node)[0];
+        node.status = $('<div>').attr('id',selector.tooltip_status_id).appendTo(node)[0];
+        node.details = $('<div>').attr('id',selector.tooltip_details_id).appendTo(node)[0];
+        node.bzlist = $('<div>').attr('id',selector.tooltip_bugzilla_id).appendTo(node)[0];
         
-        content = [],
+        content = {},
         
         _render = function(conf) {
             var
@@ -35,23 +37,44 @@ var WikiBox = (function(){
             
             
         },
-        _moveTo = function(elem) {},
-        _view = function(elem) {},
-        _edit = function(elem) {};
+        _moveTo = function(elem) {
+            var 
+            offset = $(elem).offset(),
+            width = $(elem).css('width'),
+            height = $(elem).css('height');
+            $(node).css({
+                top: offset.top + height,
+                left: offset.left + (width/2)
+            })
+        },
+        _bzLink = function(link) {
+            return '<a href="http://tools.datasub.com/bugzilla/show_bug.cgi?id='+link+'">'+link+'</a>'
+        },
+        _view = function(elem) {
+            var links = '';
+            $(content.links).each(function() {
+                links += _bzLink(this) + '<pre>, </pre>'
+            })
+            $(node.header).html('<a href="#">Edit Result</a>')
+            $(node.status).html(_showStatus(content.status))
+            $(node.details).html(content.details)
+            $(node.bzlist).html(links);
+        },
+        _edit = function(elem) {
+            $(node.header).html('<a href="#">View Result</a>')
+            $(node.status).html(_editStatus(content.status))
+            $(node.details).html('<textarea>'+content.details+'</textarea>')
+            $(node.bzlist).html('input type="text" value="'+content.links.join(', ')+'">');
+        };
         
         return {
             show: function(id, el){
                 var col = el.className.replace(/^.*?cell\-([\d]+).*/,'$1');
                 content = data[id][col];
                 content ? _view() : _edit();
-                _render({
-                    date:data[id].date,
-                    status:data[id].status,
-                    links:data[id].links,
-                    text:data[id].text
-                })
+                _render(content)
                 _moveTo(el);
-                node.style.display = 'block';
+                $(node).show();
             }
         }
     })(),
@@ -79,15 +102,13 @@ var WikiBox = (function(){
             + newline + '&lt;/script&gt;'
             + newline + '&lt;!-- &lt;pre&gt; --&gt;';
         
-        var div = document.createElement('div');
-        div.setAttribute('id', 'wb-edit-content');
-        div.innerHTML = text;
-        
+        var iframe = $('<div>').attr('id', iframe_container_id).html(text)
+                
         form.nowysiwyg = 1;
         form.settingstopic = '%SETTINGSTOPIC%';
-        form.originalrev = div.querySelector('[name="originalrev"]').value;
-        form.sig = div.querySelector('#sig').innerHTML;
-        form.text = div.querySelector('#topic').innerHTML
+        form.originalrev = iframe.querySelector('[name="originalrev"]').value;
+        form.sig = iframe.querySelector('#sig').value;
+        form.text = iframe.querySelector('#topic').innerHTML
         .replace(document.querySelector('#wb-script') ? script : /$/, scriptText)
         .replace(divs, function(){return '&lt;div class="wb-table" id="'+tables[i++].id+'"&gt;'})
         
@@ -99,7 +120,7 @@ var WikiBox = (function(){
         content = content.replace(/^&/,'');
         $.ajax({
             url: location.href.replace('view','save'),
-            method: 'post',
+            type: 'post',
             data: content,
             success: function(){}
         })
@@ -117,7 +138,7 @@ var WikiBox = (function(){
                 url: location.href.replace('view','edit')
                     + '?t=' + Math.random().toString().substr(2,10)
                     + ';nowysiwyg=1',
-                method: 'get',
+                type: 'get',
                 success: _prepare
             });
             tables = document.querySelector('.wikibox');
