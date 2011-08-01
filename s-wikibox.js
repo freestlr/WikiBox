@@ -1,12 +1,20 @@
+/* 
+    Document   : wikibox.js
+    Created on : 29.07.2011, 17:27:21
+    Author     : alexey.kanischev
+*/
+
 var WikiBox = (function(){
     var
-    tables = [],
+    tables = {},
     form = {},
     data = {},
     selector = {
-        table_header_class: '',
-        table_date_class: '',
-        table_result_class: '',
+        table_class: 'wikibox',
+        table_id: 'wb-tbl-',
+        table_header_class: 'wb-tbl-header',
+        table_date_class: 'wb-tbl-date',
+        table_result_class: 'wb-tbl-result',
         
         iframe_container_id: 'wb-edit-content',
         
@@ -80,7 +88,8 @@ var WikiBox = (function(){
     })(),
     
     _fill = function(table, data) {
-        table.querySelectorAll()
+        $(table, '.' + selector.table_header_class).each(function(){})
+        $(table, '.' + selector.table_result_class).each(function(){})
     }
     
     _prepare = function(text){
@@ -134,34 +143,30 @@ var WikiBox = (function(){
     
     return {
         init: function(){
-            $.ajax({
+            $.ajax({                        //get content of current page for _save
                 url: location.href.replace('view','edit')
                     + '?t=' + Math.random().toString().substr(2,10)
                     + ';nowysiwyg=1',
                 type: 'get',
                 success: _prepare
             });
-            tables = document.querySelector('.wikibox');
-            if(!tables[0])return;           //no tables - nothing to do
-            tables.ids = {};
-            $(tables).each(function() {     //store existing ids and generate new
+            var containers = $('.'+selector.table_class);
+            if(!containers.length)return;       //no tables - nothing to do
+            $(containers).each(function() {     //store existing ids and generate new
                 if(!this.id) {
-                    var id;                 //each id is ten-digit number
-                    do {id = Math.random().toString().substr(2,10)}
-                    while(tables.ids[id])
+                    var id;                     //each id is ten-digit number
+                    do {id = selector.table_id + Math.random().toString().substr(2,10)}
+                    while(tables[id]);
                     this.id = id;
+                    _raw(id)
                 }
-                tables.ids[this.id] = this;
-                $(this).bind('click', handleTableClick)
-            });
-            $(data).each(function() {       //fill tables with stored data
-                tables.ids[this]
-                    ? fill(tables.ids[this], data[this])
-                    : data[this].raw()
+                tables[this.id] = this;
+                $(this).bind('click', handleTableClick);
+                _fill(this, data[this.id])      //fill tables with stored data
             });
         },
         
-        set: function(o){           //make some verifications here if needed
+        set: function(o){           //loads table contents from inline script
             $(o).each(function(){
                 if (o.hasOwnProperty(this)) data[this] = o[this]
             })
