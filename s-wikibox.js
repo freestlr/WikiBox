@@ -9,6 +9,30 @@ var WikiBox = (function(){
     tables = {},
     form = {},
     data = {},
+    /*Form one:
+     *  data = {
+     *      0123456789: {
+     *          header: ['FireFox', 'Chrome', 'Safari', 'Internet Explorer 7', 'Internet Explorer 8'],
+     *          date: ['01/03/2011', '12/09/2010', '21/11/2011', '15/10/2011', '10/04/2011'],
+     *          result: ['pass', 'pass', 'fail', 'warn', 'pass'],
+     *          links: [7901, 8351, 2838, 1566, 3261],
+     *          details: ['', '', 'POS dont work', 'Somethings wrong', 'ie crashes']
+     *      },
+     *      3467894786: {}
+     *  }
+     *  
+     *Form two:
+     *  data = {
+     *      0123456789: [
+     *          {header: 'FireFox', date: '01/03/2011', result: 'pass', links: [7901, 8351], details: ''},
+     *          {header: 'Chrome', date: '12/09/2010', result: 'pass', links: [2838], details: ''},
+     *          {header: 'Safari', date: '21/11/2011', result: 'fail', links: [1566], details: 'POS dont work'},
+     *          {header: 'Internet Explorer 7', date: '15/10/2011', result: 'warn', links: [3261], details: 'Somethings wrong'},
+     *          {header: 'Internet Explorer 8', date: '10/04/2011', result: 'pass', links: [], details: 'ie crashes'}
+     *      ],
+     *      3467894786: []
+     *  }
+     */
     selector = {
         table_class: 'wikibox',
         table_id: 'wb-tbl-',
@@ -27,13 +51,13 @@ var WikiBox = (function(){
     
     var
     Tooltip = (function(){
-        var
-        node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body).bind('click', handle)[0];
+        var node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body).bind('click', handle)[0];
         node.header = $('<div>').attr('id',selector.tooltip_header_id).appendTo(node)[0];
         node.status = $('<div>').attr('id',selector.tooltip_status_id).appendTo(node)[0];
         node.details = $('<div>').attr('id',selector.tooltip_details_id).appendTo(node)[0];
         node.bzlist = $('<div>').attr('id',selector.tooltip_bugzilla_id).appendTo(node)[0];
         
+        var
         content = {},
         
         _render = function(conf) {
@@ -90,8 +114,28 @@ var WikiBox = (function(){
     _fill = function(table, data) {
         $(table, '.' + selector.table_header_class).each(function(){})
         $(table, '.' + selector.table_result_class).each(function(){})
-    }
+    },
     
+    _raw = function() {
+        
+    },
+    
+    _render = function(id) {
+        var row = function(i, cls, field) {
+            var content = ''
+            while(i--)content += '<td class="' + cls + '>' + data[id][i][field] + '</td>'
+            return content
+        },
+        cols = data[id].length,
+        html = ''
+        + '<table><tbody><tr>'
+        + row(cols, selector.table_header_class, 'header') + '</tr><tr>'
+        + row(cols, selector.table_date_class, 'date') + '</tr><tr>'
+        + row(cols, selector.table_result_class, 'result') + '</tr><tr>'
+        + '</tr></table></tbody>';
+        tables[id].innerHTML = html;
+    },
+        
     _prepare = function(text){
         text = text
         .replace(/<script>[\w\W]*?<\/script>/gim, '')   //delete all scripts
@@ -122,7 +166,6 @@ var WikiBox = (function(){
         .replace(divs, function(){return '&lt;div class="wb-table" id="'+tables[i++].id+'"&gt;'})
         
     },
-    _render = function(){}
     _save = function(){
         var content = '', i=0;
         $(form).each(function(){content+='&'+this+'='+escape(form[this])})
@@ -139,7 +182,7 @@ var WikiBox = (function(){
         var cls = event.target.className;
         /wb-cell-status/.test(cls) && Tooltip.show(this.id, event.target);
         /wb-button-save/.test(cls) && _save();
-    }
+    };
     
     return {
         init: function(){
@@ -163,6 +206,7 @@ var WikiBox = (function(){
                 tables[this.id] = this;
                 $(this).bind('click', handleTableClick);
                 _fill(this, data[this.id])      //fill tables with stored data
+                _render(this.id);
             });
         },
         
