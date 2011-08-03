@@ -3,25 +3,14 @@
     Created on : 29.07.2011, 17:27:21
     Author     : alexey.kanischev
 */
-
 var WikiBox = (function(){
+    String.prototype.wrap = function(str) {
+        return str + this + (/<\w+[^>]*>/.test(str) ? str.replace(/<(\w+).*/,'</$1>') : str)
+    };
     var
     tables = {},
-    form = {},
-    data = {},
-    /*Form one:
-     *  data = {
-     *      0123456789: {
-     *          header: ['FireFox', 'Chrome', 'Safari', 'Internet Explorer 7', 'Internet Explorer 8'],
-     *          date: ['01/03/2011', '12/09/2010', '21/11/2011', '15/10/2011', '10/04/2011'],
-     *          result: ['pass', 'pass', 'fail', 'warn', 'pass'],
-     *          links: [7901, 8351, 2838, 1566, 3261],
-     *          details: ['', '', 'POS dont work', 'Somethings wrong', 'ie crashes']
-     *      },
-     *      3467894786: {}
-     *  }
-     *  
-     *Form two:
+    form = [],
+    /*
      *  data = {
      *      0123456789: [
      *          {header: 'FireFox', date: '01/03/2011', result: 'pass', links: [7901, 8351], details: ''},
@@ -33,13 +22,46 @@ var WikiBox = (function(){
      *      3467894786: []
      *  }
      */
+    storage = {
+        data: {},
+        defaults: {
+            browsers: [
+                'Apple Safari',
+                'Google Chrome',
+                'Mozilla FireFox',
+                'Internet Explorer 6',
+                'Internet Explorer 7',
+                'Internet Explorer 8'
+            ]
+        },
+        fill: function(table) {
+            $(table, '.' + selector.table_header_class).each(function(){})
+            $(table, '.' + selector.table_result_class).each(function(){})
+        },
+        raw: function(id) {
+            var data = this.data[id] = [];
+            var cols = storage.defaults.browsers;
+            $(cols).each(function() {
+                data.push({
+                    header: this+'',
+                    date: '',
+                    result: '',
+                    links: [],
+                    details: ''
+                })
+            })
+        }
+    },
     selector = {
         table_class: 'wikibox',
         table_id: 'wb-tbl-',
+        table_cell_index_class: 'wb-cell-',
         table_header_class: 'wb-tbl-header',
         table_date_class: 'wb-tbl-date',
         table_result_class: 'wb-tbl-result',
         
+        script_data_id: 'wb-script',
+        button_save_class: 'wb-btn-save',
         iframe_container_id: 'wb-edit-content',
         
         tooltip_id: 'wb-tooltip',
@@ -51,32 +73,35 @@ var WikiBox = (function(){
     
     var
     Tooltip = (function(){
-        var node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body).bind('click', handle)[0];
-        node.header = $('<div>').attr('id',selector.tooltip_header_id).appendTo(node)[0];
-        node.status = $('<div>').attr('id',selector.tooltip_status_id).appendTo(node)[0];
-        node.details = $('<div>').attr('id',selector.tooltip_details_id).appendTo(node)[0];
-        node.bzlist = $('<div>').attr('id',selector.tooltip_bugzilla_id).appendTo(node)[0];
+        var
+        node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body)/*.bind('click', handle)*/[0],
+        header = $('<div>').attr('id',selector.tooltip_header_id).appendTo(node)[0],
+        status = $('<div>').attr('id',selector.tooltip_status_id).appendTo(node)[0],
+        details = $('<div>').attr('id',selector.tooltip_details_id).appendTo(node)[0],
+        bzlist = $('<div>').attr('id',selector.tooltip_bugzilla_id).appendTo(node)[0];
         
         var
         content = {},
+        myWidth = 0,
         
-        _render = function(conf) {
-            var
-            date = conf.date || '',
-            status = conf.date || '',
-            links = conf.date || '',
-            text = conf.date || '';
-            
-            
-        },
+//        _render = function(conf) {
+//            var
+//            date = conf.date || '',
+//            status = conf.date || '',
+//            links = conf.date || '',
+//            text = conf.date || '';
+//            
+//            
+//        },
         _moveTo = function(elem) {
+            myWidth = +$(node).css('width').replace(/[^\d\.]/g, '') / 2
             var 
             offset = $(elem).offset(),
-            width = $(elem).css('width'),
-            height = $(elem).css('height');
+            width = +$(elem).css('width').replace(/[^\d\.]/g, ''),
+            height = +$(elem).css('height').replace(/[^\d\.]/g, '');
             $(node).css({
-                top: offset.top + height,
-                left: offset.left + (width/2)
+                top: (offset.top + height) + 'px',
+                left: (offset.left + (width/2) - myWidth) + 'px'
             })
         },
         _bzLink = function(link) {
@@ -87,101 +112,97 @@ var WikiBox = (function(){
             $(content.links).each(function() {
                 links += _bzLink(this) + '<pre>, </pre>'
             })
-            $(node.header).html('<a href="#">Edit Result</a>')
-            $(node.status).html(_showStatus(content.status))
-            $(node.details).html(content.details)
-            $(node.bzlist).html(links);
+            $(header).html(content.header)
+            $(status).html(content.result)
+            $(details).html(content.details)
+            $(bzlist).html(links);
         },
         _edit = function(elem) {
-            $(node.header).html('<a href="#">View Result</a>')
-            $(node.status).html(_editStatus(content.status))
-            $(node.details).html('<textarea>'+content.details+'</textarea>')
-            $(node.bzlist).html('input type="text" value="'+content.links.join(', ')+'">');
+            $(header).html('<a href="#">' + content.header + '</a>')
+            $(status).html('<input type="radio" name="status" value="pass">pass<input type="radio" name="status" value="warn">warn<input type="radio" name="status" value="fail">fail')
+            $(details).html('<textarea>' + content.details + '</textarea>')
+            $(bzlist).html('input type="text" value="' + content.links.join(', ') + '">');
         };
         
         return {
             show: function(id, el){
-                var col = el.className.replace(/^.*?cell\-([\d]+).*/,'$1');
-                content = data[id][col];
+                var col = el.className.replace(new RegExp('^.*?' + selector.table_cell_index_class + '(\\d+)', 'ig'), '$1');
+                content = storage.data[id][col];
                 content ? _view() : _edit();
-                _render(content)
+//                _render(content)
                 _moveTo(el);
                 $(node).show();
             }
         }
     })(),
     
-    _fill = function(table, data) {
-        $(table, '.' + selector.table_header_class).each(function(){})
-        $(table, '.' + selector.table_result_class).each(function(){})
-    },
-    
-    _raw = function() {
-        
-    },
-    
     _render = function(id) {
-        var row = function(i, cls, field) {
-            var content = ''
-            while(i--)content += '<td class="' + cls + '>' + data[id][i][field] + '</td>'
+        var row = function(cols, cls, field) {
+            var content = '', i = 0;
+            while(i < cols)content += '<td class="' + cls + ' ' + selector.table_cell_index_class + i + '">' + storage.data[id][i++][field] + '</td>'
             return content
         },
-        cols = data[id].length,
+        cols = storage.data[id].length,
+        
+        td_save = '<td class="' + selector.table_header_class + '"><input type="button" value="save" class="' + selector.button_save_class + '"></td>',
+        td_date = '<td class="' + selector.table_date_class + '">Last check date</td>',
+        td_result = '<td>Result</td>',
+        
         html = ''
         + '<table><tbody><tr>'
-        + row(cols, selector.table_header_class, 'header') + '</tr><tr>'
-        + row(cols, selector.table_date_class, 'date') + '</tr><tr>'
-        + row(cols, selector.table_result_class, 'result') + '</tr><tr>'
+        + td_save + row(cols, selector.table_header_class, 'header') + '</tr><tr>'
+        + td_date + row(cols, selector.table_date_class, 'date') + '</tr><tr>'
+        + td_result + row(cols, selector.table_result_class, 'result') + '</tr><tr>'
         + '</tr></table></tbody>';
-        tables[id].innerHTML = html;
+        $(tables[id]).html(html);
     },
         
     _prepare = function(text){
         text = text
-        .replace(/<script>[\w\W]*?<\/script>/gim, '')   //delete all scripts
-        .replace(/<head>[\w\W]*?<\/head>/gim, '')       //delete head element
-        .replace(/src\="/gim, 'orig="');                //replace src attribute
+        .replace(/<script[\w\W]*?<\/script>/gim, '')    //delete all scripts
+        .replace(/<head[\w\W]*?<\/head>/gim, '')        //delete head element
+        .replace(/src\="/gim, 'source="');              //replace src attribute
         
-        var
-        script = /\n.*\n<script.*?id.*?wb-script[\w\W]*$/,
-        divs = /&lt;div.*?class\="wb-table".*?&gt;/gm,
-        newline = '\n',
-        scriptText = ''
-            + newline + '&lt;!-- &lt;pre&gt; --&gt;'
-            + newline + '&lt;script id="wb-script" type="text/Javascript"&gt;'
-            + newline + '//&lt;!--'
-            + newline + 'WikiBox.set('+JSON.stringify(data)+');'
-            + newline + '//--&gt;'
-            + newline + '&lt;/script&gt;'
-            + newline + '&lt;!-- &lt;pre&gt; --&gt;';
+//        var
+//        script = new RegExp('\\n<script.*?id..' + selector.script_data_id.replace(/\-/g, '\\-') + '[\\w\\W]*$'),
+//        divs = new RegExp('&lt;div[^>]*class..' + selector.table_class.replace(/\-/g, '\\-') + '.*?&gt;', 'gm'),
+//        nl = '\n',
+//        scriptText = ''
+//            + nl + '&lt;!-- &lt;pre&gt; --&gt;'
+//            + nl + '&lt;script id="' + selector.script_data_id + '" type="text/Javascript"&gt;'
+//            + nl + '//&lt;!--'
+//            + nl + 'WikiBox.set('+JSON.stringify(storage.data)+');'
+//            + nl + '//--&gt;'
+//            + nl + '&lt;/script&gt;'
+//            + nl + '&lt;!-- &lt;pre&gt; --&gt;';
         
-        var iframe = $('<div>').attr('id', iframe_container_id).html(text)
-                
-        form.nowysiwyg = 1;
-        form.settingstopic = '%SETTINGSTOPIC%';
-        form.originalrev = iframe.querySelector('[name="originalrev"]').value;
-        form.sig = iframe.querySelector('#sig').value;
-        form.text = iframe.querySelector('#topic').innerHTML
-        .replace(document.querySelector('#wb-script') ? script : /$/, scriptText)
-        .replace(divs, function(){return '&lt;div class="wb-table" id="'+tables[i++].id+'"&gt;'})
-        
+        var iframe = $('<div>').attr('id', selector.iframe_container_id).html(text)[0];
+//        var i = 0;
+//        $('#topic', iframe).html(
+//            $('#topic', iframe).html()
+//            .replace($(selector.script_data_id).length ? script : /$/, scriptText)
+//            .replace(divs, function() {
+//                return '&lt;div class="' + selector.table_class + '" id="' + tables[i++].id + '"&gt;'
+//            })
+//        )
+        form = $('from[name="main"]', iframe).serialize().split('&');
     },
+    
     _save = function(){
-        var content = '', i=0;
-        $(form).each(function(){content+='&'+this+'='+escape(form[this])})
-        content = content.replace(/^&/,'');
+        StringifyData();
+        SetTableIds();
         $.ajax({
             url: location.href.replace('view','save'),
             type: 'post',
-            data: content,
+            data: form.join('&'),
             success: function(){}
         })
     },
     
     handleTableClick = function(event) {
         var cls = event.target.className;
-        /wb-cell-status/.test(cls) && Tooltip.show(this.id, event.target);
-        /wb-button-save/.test(cls) && _save();
+        cls.indexOf(selector.table_result_class)+1 && Tooltip.show(this.id, event.target);
+        cls.indexOf(selector.button_save_class)+1 && _save();
     };
     
     return {
@@ -201,23 +222,23 @@ var WikiBox = (function(){
                     do {id = selector.table_id + Math.random().toString().substr(2,10)}
                     while(tables[id]);
                     this.id = id;
-                    _raw(id)
+                    storage.raw(id)
                 }
                 tables[this.id] = this;
                 $(this).bind('click', handleTableClick);
-                _fill(this, data[this.id])      //fill tables with stored data
+                storage.fill(this.id)      //fill tables with stored data
                 _render(this.id);
             });
         },
         
         set: function(o){           //loads table contents from inline script
             $(o).each(function(){
-                if (o.hasOwnProperty(this)) data[this] = o[this]
+                if (o.hasOwnProperty(this)) storage.data[this] = o[this]
             })
         }
     }
 })();
 
-window.onload = function() {
+$(document).ready(function() {
     WikiBox.init();
-}
+})

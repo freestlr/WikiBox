@@ -1,0 +1,48 @@
+/* 
+    Document   : wikibox.css
+    Created on : 29.07.2011, 17:27:21
+    Author     : alexey.kanischev
+*/
+
+.wikibox table {
+    text-align: center;
+    border: 2px solid #99f;
+    width: auto;
+    border-collapse: collapse;
+    font-family: Tahoma, Verdana;
+}
+
+.wikibox table tr td {
+    border-right: 1px solid #99f;
+    padding: 5px;
+}
+
+.wb-tbl-header {
+    font-weight: bold;
+    font-size: 10px;
+    color: #777;
+    background-color: #eee;
+    border-bottom: 1px dashed #99f;
+}
+
+.wb-tbl-date {
+    border-bottom: 1px dashed #99f;
+}
+
+.wb-tbl-result:hover {
+    background-color: #dfd;
+}
+
+.wb-btn-save {
+    background-color: #f1f1f1;
+}
+
+#wb-tooltip {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border: 1px solid #99f;
+    background-color: #eef;
+    text-align: center;
+    z-index: 3141;
+}
