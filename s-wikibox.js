@@ -7,6 +7,9 @@ var WikiBox = (function(){
     String.prototype.wrap = function(str) {
         return str + this + (/<\w+[^>]*>/.test(str) ? str.replace(/<(\w+).*/,'</$1>') : str)
     };
+    String.prototype.has = function(str) {
+        return this.indexOf(str)+1 ? this : ''
+    }
     var
     tables = {},
     form = [],
@@ -59,11 +62,15 @@ var WikiBox = (function(){
         table_header_class: 'wb-tbl-header',
         table_date_class: 'wb-tbl-date',
         table_result_class: 'wb-tbl-result',
+        table_cell_selected_class: 'wb-tbl-selected',
         
         script_data_id: 'wb-script',
         button_save_class: 'wb-btn-save',
         iframe_container_id: 'wb-edit-content',
         
+        sClassTableResultPass: 'wb-tt-pass',
+        sClassTableResultWarn: 'wb-tt-warn',
+        sClassTableResultFail: 'wb-tt-fail',
         tooltip_id: 'wb-tooltip',
         tooltip_header_id: 'wb-tt-header',
         tooltip_status_id: 'wb-tt-status',
@@ -71,71 +78,98 @@ var WikiBox = (function(){
         tooltip_bugzilla_id: 'wb-tt-bzlist'
     };
     
-    var
-    Tooltip = (function(){
-        var
-        node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body)/*.bind('click', handle)*/[0],
-        header = $('<div>').attr('id',selector.tooltip_header_id).appendTo(node)[0],
-        status = $('<div>').attr('id',selector.tooltip_status_id).appendTo(node)[0],
-        details = $('<div>').attr('id',selector.tooltip_details_id).appendTo(node)[0],
-        bzlist = $('<div>').attr('id',selector.tooltip_bugzilla_id).appendTo(node)[0];
-        
-        var
-        content = {},
-        myWidth = 0,
-        
-//        _render = function(conf) {
-//            var
-//            date = conf.date || '',
-//            status = conf.date || '',
-//            links = conf.date || '',
-//            text = conf.date || '';
-//            
-//            
-//        },
-        _moveTo = function(elem) {
-            myWidth = +$(node).css('width').replace(/[^\d\.]/g, '') / 2
+    var Tooltip = {
+        _moveTo : function(elem) {
+            this.width = +this.node.css('width').replace(/[^\d\.]/g, '') / 2
             var 
             offset = $(elem).offset(),
             width = +$(elem).css('width').replace(/[^\d\.]/g, ''),
             height = +$(elem).css('height').replace(/[^\d\.]/g, '');
-            $(node).css({
-                top: (offset.top + height) + 'px',
-                left: (offset.left + (width/2) - myWidth) + 'px'
+            this.node.css({
+                top: (offset.top + (height*2)) + 'px',
+                left: (offset.left + (width/2) - this.width) + 'px'
             })
         },
-        _bzLink = function(link) {
-            return '<a href="http://tools.datasub.com/bugzilla/show_bug.cgi?id='+link+'">'+link+'</a>'
+        _bzLink : function(link) {
+            return '<a target="_blank" href="http://tools.datasub.com/bugzilla/show_bug.cgi?id='+link+'">'+link+'</a>'
         },
-        _view = function(elem) {
-            var links = '';
-            $(content.links).each(function() {
-                links += _bzLink(this) + '<pre>, </pre>'
+        _view : function(elem) {
+            var links = '', self = this;
+            $(this.content.links).each(function() {
+                links += self._bzLink(this) + ', '
             })
-            $(header).html(content.header)
-            $(status).html(content.result)
-            $(details).html(content.details)
-            $(bzlist).html(links);
+            this.header.html(this.content.header)
+            this.result.html(this.content.result)
+            this.details.html(this.content.details)
+            this.links.html(links);
         },
-        _edit = function(elem) {
-            $(header).html('<a href="#">' + content.header + '</a>')
-            $(status).html('<input type="radio" name="status" value="pass">pass<input type="radio" name="status" value="warn">warn<input type="radio" name="status" value="fail">fail')
-            $(details).html('<textarea>' + content.details + '</textarea>')
-            $(bzlist).html('input type="text" value="' + content.links.join(', ') + '">');
-        };
+        _edit : function(elem) {
+            this.header.html(this.content.header)
+//            this.result.html('<input type="radio" name="result" value="pass">pass<input type="radio" name="result" value="warn">warn<input type="radio" name="result" value="fail">fail')
+            this.result.html(''
+            + '<div class="' + selector.sClassTableResultPass + '" name="result" value="pass">pass</div>'
+            + '<div class="' + selector.sClassTableResultWarn + '" name="result" value="warn">warn</div>'
+            + '<div class="' + selector.sClassTableResultFail + '" name="result" value="fail">fail</div>'
+            );
+            this.details.html('<textarea name="details">' + (this.content.details || 'Issue details') + '</textarea>');
+            this.links.html('<input name="links" type="text" value="' + (this.content.links.join(', ') || 'Bugzilla tickets') + '">');
+        },
         
-        return {
-            show: function(id, el){
-                var col = el.className.replace(new RegExp('^.*?' + selector.table_cell_index_class + '(\\d+)', 'ig'), '$1');
-                content = storage.data[id][col];
-                content ? _view() : _edit();
-//                _render(content)
-                _moveTo(el);
-                $(node).show();
+        init: function() {
+            this.node = $('<div>').attr('id',selector.tooltip_id).hide().appendTo(document.body);
+            this.header = $('<div>').attr('id',selector.tooltip_header_id).appendTo(this.node[0]);
+            this.result = $('<div>').attr('id',selector.tooltip_status_id).appendTo(this.node[0]);
+            this.details = $('<div>').attr('id',selector.tooltip_details_id).appendTo(this.node[0]);
+            this.links = $('<div>').attr('id',selector.tooltip_bugzilla_id).appendTo(this.node[0]);
+            this.content = {};
+            this.target = {};
+            this.width = 0;
+        },
+        show: function(id, el){
+            var col = el.className.replace(new RegExp('^.*?' + selector.table_cell_index_class + '(\\d+).*', 'ig'), '$1');
+            $('.'+selector.table_cell_selected_class).removeClass(selector.table_cell_selected_class);
+            $(el).addClass(selector.table_cell_selected_class);
+            this.target = {id: id, col: col};
+            this.content = storage.data[id][col];
+            this.content.result ? this._view() : this._edit();
+            this._moveTo(el);
+            this.node.appendTo(el).show();
+        },
+        update: function(hide) {
+            if (this.node.parent('.'+selector.table_cell_selected_class).length && this.content.result) {
+                this.node.appendTo(document.body);
+                this.content.date = new Date().toISOString().replace(/[^\d-].*/, '');
+                storage.data[this.target.id][this.target.col] = this.content;
+                
+                $('.'+selector.table_date_class+'.'+selector.table_cell_index_class+this.target.col, tables[this.target.id]).html(this.content.date)
+                $('.'+selector.table_result_class+'.'+selector.table_cell_index_class+this.target.col, tables[this.target.id]).html(this.content.result)
+            }
+            hide && this.node.hide()
+        },
+        save: function(field, value) {
+            this.content[field] = field == 'links' ? value.split(/\D+/) : value;
+            console.log(field+': '+value)
+        },
+        status: function(st) {
+            switch (st) {
+                case 'pass':
+                    
+                    break;
+                case 'warn':
+                    
+                    break;
+                case 'fail':
+                    
+                    break;
+                default:
+                    
+                    break;
             }
         }
-    })(),
+    };
+    Tooltip.init();
     
+    var
     _render = function(id) {
         var row = function(cols, cls, field) {
             var content = '', i = 0;
@@ -200,15 +234,27 @@ var WikiBox = (function(){
     },
     
     handleTableClick = function(event) {
-        var cls = event.target.className;
-        cls.indexOf(selector.table_result_class)+1 && Tooltip.show(this.id, event.target);
-        cls.indexOf(selector.button_save_class)+1 && _save();
+        var el = event.target;
+        $(el).hasClass(selector.table_result_class) && Tooltip.show(this.id, event.target);
+        $(el).hasClass(selector.button_save_class) && _save();
+    },
+    hideTooltip = function(event) {
+        var sel = selector.table_cell_selected_class;
+        if($(event.target).hasClass(sel) ||
+            $(event.target).parents('.'+sel).length) return;
+        Tooltip.update(!$(event.target).hasClass(selector.table_result_class))
+    },
+    changeTooltip = function(event) {
+        var el = event.target;
+        if(!$(el).attr('name'))return;
+        $(el).parent('#'+selector.tooltip_status_id).length && Tooltip.status($(el).attr('value'))
+        Tooltip.save($(el).attr('name'), $(el).attr('value') || $(el).text())
     };
     
     return {
         init: function(){
             $.ajax({                        //get content of current page for _save
-                url: location.href.replace('view','edit')
+                url: location.href.replace(/#.*/, '').replace('view','edit')
                     + '?t=' + Math.random().toString().substr(2,10)
                     + ';nowysiwyg=1',
                 type: 'get',
@@ -225,10 +271,13 @@ var WikiBox = (function(){
                     storage.raw(id)
                 }
                 tables[this.id] = this;
-                $(this).bind('click', handleTableClick);
                 storage.fill(this.id)      //fill tables with stored data
                 _render(this.id);
             });
+            $('.'+selector.table_class).bind('click', handleTableClick);
+            $(window).bind('click', hideTooltip);
+            Tooltip.node.bind('click', changeTooltip)
+            Tooltip.node.bind('keypress', changeTooltip)
         },
         
         set: function(o){           //loads table contents from inline script
