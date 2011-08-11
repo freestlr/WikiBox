@@ -39,10 +39,82 @@
 
 #wb-tooltip {
     position: absolute;
-    width: 200px;
-    height: 200px;
-    border: 1px solid #99f;
+}
+
+#wb-tt-cont {
+    position: absolute;
+    border-left: 1px solid #99f;
+    border-right: 1px solid #99f;
+    border-bottom: 1px solid #99f;
     background-color: #eef;
+    min-width: 250px;
+    max-width: 250px;
+    height: auto;
     text-align: center;
+    font-size: 12px;
+/*    margin-top: -4px;*/
     z-index: 3141;
+}
+
+#wb-tt-cont div {
+    margin: 3px;
+/*    border: 1px solid #99f;*/
+}
+
+#wb-tt-header {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+#wb-tt-status {
+    height: 40px;
+    width: 100%;
+    font-family: monospace;
+}
+
+#wb-tt-details fieldset {
+    float: left;
+    height: auto;
+    padding: 5px;
+    margin: 0px;
+    width: 230px;
+    max-width: 230px;
+    min-width: 230px;
+}
+
+#wb-tt-details textarea {
+    width: 95%;
+}
+
+#wb-tt-bzlist {
+    height: auto;
+    max-width: 240px;
+    min-width: 240px;
+}
+
+#wb-tt-bzlist input {
+    width: 95%;
+}
+
+.wb-tt-st-pass, .wb-tt-st-warn, .wb-tt-st-fail {
+    width: 29%;
+    opacity: 0.4;
+    float: left;
+    height: 35px;
+    line-height: 35px;
+    border: 1px solid #eef;
+    cursor: default;
+}
+.wb-tt-st-pass {
+    background-color: #8f8;
+}
+.wb-tt-st-warn {
+    background-color: #ff8;
+}
+.wb-tt-st-fail {
+    background-color: #f88;
+}
+.wb-tt-st-pass:hover, .wb-tt-st-warn:hover, .wb-tt-st-fail:hover, .wb-tt-st-selected {
+    opacity: 1;
+    border: 1px dashed #99f;
 }
