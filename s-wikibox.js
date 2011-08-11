@@ -13,7 +13,7 @@ var WikiBox = (function(){
         var arr = [];
         for(var prop in obj)
             obj.hasOwnProperty(prop) &&
-            arr.push(escape(prop)+'='+escape(obj[prop]))
+            arr.push(encodeURIComponent(prop)+'='+encodeURIComponent(obj[prop]))
         return arr.join('&')
     };
     HTMLFormElement.prototype.toObject = function() {
@@ -75,6 +75,7 @@ var WikiBox = (function(){
         sIdTooltipResult: 'wb-tt-status',
         sIdTooltipDetails: 'wb-tt-details',
         sIdTooltipLinks: 'wb-tt-bzlist',
+        sIdTooltipContainer: 'wb-tt-cont',
 
         sClassTooltipResultInput: 'wb-tt-st-input',
         sClassTooltipResultSelected: 'wb-tt-st-selected',
@@ -90,46 +91,54 @@ var WikiBox = (function(){
             this.width = this.width || 125;     //!!this is spike!!
             var 
             offset = $(elem).offset(),
-            width = +$(elem).css('width').replace(/[^\d\.]/g, ''),
-            height = +$(elem).css('height').replace(/[^\d\.]/g, '');
+            width = +$(elem).css('width').replace(/[^\d\.]/g, '');
+//            height = +$(elem).css('height').replace(/[^\d\.]/g, '');
             this.node.css({
-                top: (offset.top + (height*2)) + 'px',
+                top: (offset.top + /*(height*2)*/30) + 'px',
                 left: (offset.left + (width/2) - this.width) + 'px'
             })
         },
-        _bzLink : function(link) {
-            return '<a target="_blank" href="http://tools.datasub.com/bugzilla/show_bug.cgi?id='+link+'">'+link+'</a>'
-        },
         _view : function() {
-            var links = '', self = this;
+            this.edit = false;
+            var links = [], self = this;
             $(this.content.links.split(', ')).each(function() {
-                links += self._bzLink(this) + ', '
+                links.push('<a target="_blank" href="http://tools.datasub.com/bugzilla/show_bug.cgi?id='+this+'">'+this+'</a>')
             })
-            
-            this.header.html(this.content.header)
-            this.result.html(''
-                + this.content.result.wrap('<div style="float: left" class="' + selector.sClassTooltipResultSelected + ' ' + selector['sClassTooltipResult' + this.content.result.slice(0,1).toUpperCase() + this.content.result.slice(1)] + '">')
-                + ( ('By: '+this.content.user).wrap('<span>')
-                + '<br/>'
-                + ('Date: '+this.content.date).wrap('<span>') ).wrap('<div style="float: right; text-align: left">')
-            ).click(function() {self._edit()});
-            this.details.html(
-                ('Details:'.wrap('<legend style="font-family: monospace">') + this.content.details).wrap('<fieldset>')
+            links = links.join(', ');
+            this.header
+            .html(this.content.header.wrap('<a href="javascript:;" title="Edit">'))
+            .click(function(e) {
+                e.stopPropagation();
+                self._edit();
+            });
+            this.result
+            .html(this.content.result.wrap('<div style="float: left" class="' + selector.sClassTooltipResultSelected + ' ' + selector['sClassTooltipResult' + this.content.result.slice(0,1).toUpperCase() + this.content.result.slice(1)] + '">')
+                + ( ('By: '+this.content.user).wrap('<span>') + '<br/>'
+                + ('Date: '+this.content.date).wrap('<span>') ).wrap('<div style="float: left; text-align: left">')
             )
-            this.links.html(links.replace(/,.$/,''));
+            this.details
+            .html(('Details:'.wrap('<legend style="font-family: monospace">') + this.content.details).wrap('<fieldset>'))
+            .css('text-align', 'left')
+            this.links
+            .html('<br/>Bugzilla tickets: ' + links.replace(/,.$/,''))
+            .css('text-align', 'left');
         },
         _edit : function() {
+            this.edit = true;
             this.header.html(this.content.header)
             this.result.html(''
             + 'pass'.wrap('<div class="' + selector.sClassTooltipResultPass + '" name="result" value="pass">')
             + 'warn'.wrap('<div class="' + selector.sClassTooltipResultWarn + '" name="result" value="warn">')
             + 'fail'.wrap('<div class="' + selector.sClassTooltipResultFail + '" name="result" value="fail">')
-            + '<input type="text" class="' + selector.sClassTooltipResultInput + '" name="result" style="display: none" value="' + this.content.result + '">'
             );
-            this.details.html('<textarea name="details">' + (this.content.details || 'Issue details') + '</textarea>');
+            this.details
+            .html('<textarea name="details">' + (this.content.details || 'Issue details') + '</textarea>')
+            .css('text-align', 'center');
             var width = $('textarea', this.details).css('width');
             $('textarea', this.details).css({'max-width': width, 'min-width': width});
-            this.links.html('<input name="links" type="text" value="' + (this.content.links.join(', ') || 'Bugzilla tickets') + '">');
+            this.links
+            .html('<input name="links" type="text" value="' + (this.content.links || 'Bugzilla tickets') + '">')
+            .css('text-align', 'center');
             $([
                 $('textarea', this.details)[0],
                 $('input', this.links)[0]
@@ -137,18 +146,34 @@ var WikiBox = (function(){
         },
         
         init: function() {
-            this.node    = $('<div>')   .attr('id', selector.sIdTooltip).hide()  .appendTo(document.body);
-            this.form    = $('<form>')  .attr('id', selector.sIdTooltipForm)     .appendTo(this.node);
+            this.node    = $('<div>')   .attr('id', selector.sIdTooltip)         .appendTo(document.body);
+            this.cvs     = $('<canvas>').attr({height: 10, width: 250})          .appendTo(this.node)[0].getContext('2d');
+            this.cont    = $('<div>')   .attr('id', selector.sIdTooltipContainer).appendTo(this.node);
+            this.form    = $('<form>')  .attr('id', selector.sIdTooltipForm)     .appendTo(this.cont);
             this.header  = $('<div>')   .attr('id', selector.sIdTooltipHeader)   .appendTo(this.form);
             this.result  = $('<div>')   .attr('id', selector.sIdTooltipResult)   .appendTo(this.form);
             this.details = $('<div>')   .attr('id', selector.sIdTooltipDetails)  .appendTo(this.form);
             this.links   = $('<div>')   .attr('id', selector.sIdTooltipLinks)    .appendTo(this.form);
+            
+            this.cvs.strokeStyle = '#66f';
+            this.cvs.fillStyle = '#eef';
+            this.cvs.moveTo(0,10);
+            this.cvs.lineTo(110,10);
+            this.cvs.lineTo(125,0);
+            this.cvs.lineTo(125,1);
+            this.cvs.lineTo(140,10);
+            this.cvs.lineTo(251,10);
+            this.cvs.stroke();
+            this.cvs.fill();
+            
             this.content = {};
             this.target  = {};
             this.width   = 0;
+            this.node.hide();
         },
         show: function(id, el){
-            if ($(el).hasClass(selector.sClassCellSelected)) return;
+            if($(el).hasClass(selector.sClassCellSelected))return;
+            this.node.bind('click', updateStatus);
             var col = el.className.replace(new RegExp('^.*?' + selector.sClassCellIndex + '(\\d+).*', 'ig'), '$1');
             var sel = selector.sClassCellSelected;
             $('.'+sel).removeClass(sel);
@@ -160,17 +185,19 @@ var WikiBox = (function(){
                 col: col
             };
             this.content = storage.data[id][col];
-            this.content.result ? this._view() : this._edit()
+            this.content.result ? this._view() : this._edit();
             this.updateStatus(this.content.result);
             this._moveTo(el);
             this.node.appendTo(el).show();
         },
         hide: function() {
-            this.node.appendTo(document.body).hide();
+            $('.'+selector.sClassCellSelected).removeClass(selector.sClassCellSelected);
+            this.node/*.appendTo(document.body)*/.hide();
             this.target = {};
             this.content = {}
         },
         update: function() {
+            if(!this.target.id || !this.edit)return;
             this.content.date = new Date().toISOString().replace(/[^\d-].*/, '');   // YYYY-MM-DD format
             this.content.user = currentUser;
             $.extend(this.content, this.form[0].toObject());
@@ -197,7 +224,6 @@ var WikiBox = (function(){
                     break
                 }
                 $('.'+selector['sClassTooltipResult' + res.slice(0,1).toUpperCase() + res.slice(1)]).addClass(sel);
-                $('.'+selector.sClassTooltipResultInput).val(res)
             return
         }
     };
@@ -217,15 +243,15 @@ var WikiBox = (function(){
         cols = storage.data[id].length,
         
         td_save = '<td class="' + selector.sClassTableHeader + '"><input type="button" value="save" class="' + selector.sClassButtonSave + '"></td>',
-        td_date = '<td class="' + selector.sClassTableDate + '">Last check date</td>',
+        td_date = '<td class="' + selector.sClassTableDate + '">Check date</td>',
         td_result = '<td>Result</td>',
         
         html = ''
-        + '<table><tbody><tr>'
-        + td_save + row(cols, selector.sClassTableHeader, 'header') + '</tr><tr>'
-        + td_date + row(cols, selector.sClassTableDate, 'date') + '</tr><tr>'
-        + td_result + row(cols, selector.sClassTableResult, 'result') + '</tr><tr>'
-        + '</tr></table></tbody>';
+        + '<table><tbody>'
+        + (td_save + row(cols, selector.sClassTableHeader, 'header')).wrap('<tr>')
+        + (td_date + row(cols, selector.sClassTableDate, 'date')).wrap('<tr>')
+        + (td_result + row(cols, selector.sClassTableResult, 'result')).wrap('<tr>')
+        + '</table></tbody>';
         $(tables[id]).html(html);
     },
         
@@ -235,14 +261,19 @@ var WikiBox = (function(){
         .replace(/<script[\w\W]*?<\/script>/gim, '')    //delete all scripts
         .replace(/src\="/gim, 'source="');              //replace src attribute
         var iframe = $('<div>').attr('id', selector.sIdIframeContainer).html(text)[0];
-        form = $('form[name="main"]', iframe)[0].toObject();
+        form = $('form[name="main"]', iframe);
+        if (!form.length) {form = null; return}
+        form = form[0].toObject();
         currentUser = form.sig.replace(/[^\.]*\.(\w+).*/,'$1');
     },
     
-    _save = function(){
+    _save = function(button){
+        Tooltip.update();
+        if (form === null) {alert('You cannot edit this topic'); return}
+        $(button).css('background-color', '#aaf');
         var nl = '\n', ns = '--', arrId = [], id,
         reTables = new RegExp('<div[^>]*class..'+selector.sClassTable.replace(/\-/g,'.')+'.*?>', 'mig'),
-        reScript = new RegExp('\\n.*\\n<script[^>]*id..'+selector.sIdScriptData.replace(/\-/g,'.')+'[\\w\\W]*$', 'mig'),
+        reScript = new RegExp('\n[^\n]*\n<script[^>]*id..'+selector.sIdScriptData.replace(/\-/g,'.')+'[\\w\\W]*$', 'mig'),
         strScript = ''
             + nl + '<!'+ns+' <pre> '+ns+'>'
             + nl + '<script id="' + selector.sIdScriptData + '" type="text/Javascript">'
@@ -261,15 +292,17 @@ var WikiBox = (function(){
             url: location.href.replace('view','save'),
             type: 'post',
             data: toRequestString(form),
-            success: function(){}
+            success: function(txt){
+                $(button).css('background-color', '#f1f1f1');
+            }
         })
     },
     
 //---------------------------Event Handlers-----------------------------------//
     handleTableClick = function(event) {
-        var el = $(event.target);
-        el.hasClass(selector.sClassTableResult) && Tooltip.show(this.id, el[0]);
-        el.hasClass(selector.sClassButtonSave) && _save();
+        var el = event.target;
+        if ($(el).hasClass(selector.sClassTableResult)) Tooltip.show($(el).parents('.'+selector.sClassTable)[0].id, el);
+        if ($(el).hasClass(selector.sClassButtonSave)) _save(el);
     },
     hideTooltip = function(event) {
         var el = $(event.target), sel = selector.sClassCellSelected;
@@ -305,11 +338,11 @@ var WikiBox = (function(){
                 }
                 tables[this.id] = this;
             });
-            _draw();
-            
-            $('.'+selector.sClassTable).bind('click', handleTableClick);
+ 
             $(window).bind('click', hideTooltip);
-            Tooltip.node.bind('click', updateStatus)
+            $(window).bind('click', handleTableClick);
+
+            if(!$('#'+selector.sIdScriptData).length)_draw()
         },
         
         set: function(saved){           //loads table contents from inline script
